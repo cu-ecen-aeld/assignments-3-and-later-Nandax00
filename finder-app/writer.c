@@ -8,7 +8,7 @@ const char* APP_ID = "WriterApp";
 int main(int argc, char *argv[]) {
   openlog(APP_ID, 0, LOG_USER);
 
-  if (argc < 2) {
+  if (argc < 3) {
     syslog(LOG_ERR, "Two positional arguments required: file to be written, "
                     "string to be written into the file");
     return 1;
