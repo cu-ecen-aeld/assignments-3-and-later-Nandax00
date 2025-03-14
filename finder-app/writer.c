@@ -24,7 +24,13 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  fprintf(fd, "%s\n", write_str);
+  int rv = fprintf(fd, "%s\n", write_str);
+  if (rv < 0)
+  {
+    syslog(LOG_ERR, "Encountered error when writing file %s, error: %s", write_file, strerror(rv));
+    fclose(fd);
+    return 1;
+  }
 
   fclose(fd);
   return 0;
