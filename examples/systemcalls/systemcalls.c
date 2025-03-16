@@ -1,4 +1,10 @@
 #include "systemcalls.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -7,17 +13,53 @@
  *   either in invocation of the system() call, or if a non-zero return
  *   value was returned by the command issued in @param cmd.
 */
-bool do_system(const char *cmd)
-{
+bool do_system(const char *cmd) { return system(cmd) == 0; }
 
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
+bool wait_for_system_call(char **cmd, const char *outputfile) {
+  int fd;
+  if (outputfile) {
+    fd = open(outputfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    if (fd < 0) {
+      printf("Could not open output file \"%s\"\n", outputfile);
+      return false;
+    }
+  }
 
-    return true;
+  pid_t pid = fork();
+  if (pid == -1) {
+    printf("Error during fork\n");
+    if (outputfile) {
+      close(fd);
+    }
+    return false;
+  }
+
+  if (pid == 0) {
+    if (outputfile) {
+      if (dup2(fd, 1) < 0) {
+        printf("Error calling dup2\n");
+        exit(-1);
+      }
+      close(fd);
+    }
+
+    execv(cmd[0], cmd);
+    printf("Error starting \"%s\", error: %s\n", cmd[0], strerror(errno));
+    exit(-1);
+  }
+
+  if (outputfile) {
+    close(fd);
+  }
+  int stat;
+  int rv = wait(&stat);
+  if (rv == -1) {
+    return false;
+  } else if (WIFEXITED(stat)) {
+    return WEXITSTATUS(stat) == 0;
+  } else {
+    return false;
+  }
 }
 
 /**
@@ -49,19 +91,11 @@ bool do_exec(int count, ...)
     // and may be removed
     command[count] = command[count];
 
-/*
- * TODO:
- *   Execute a system command by calling fork, execv(),
- *   and wait instead of system (see LSP page 161).
- *   Use the command[0] as the full path to the command to execute
- *   (first argument to execv), and use the remaining arguments
- *   as second argument to the execv() command.
- *
-*/
+    int rv = wait_for_system_call(command, NULL);
 
     va_end(args);
 
-    return true;
+    return rv;
 }
 
 /**
@@ -84,16 +118,9 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // and may be removed
     command[count] = command[count];
 
-
-/*
- * TODO
- *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
- *   redirect standard out to a file specified by outputfile.
- *   The rest of the behaviour is same as do_exec()
- *
-*/
+    int rv = wait_for_system_call(command, outputfile);
 
     va_end(args);
 
-    return true;
+    return rv;
 }
